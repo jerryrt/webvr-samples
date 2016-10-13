@@ -102,6 +102,13 @@ found in the LICENSE file.
           // When doing mirroring like this, do NOT turn on PreserveDrawingBuffer!
         };
         gl = webglCanvas.getContext("webgl", glAttribs);
+        if (!gl) {
+          gl = webglCanvas.getContext("experimental-webgl", glAttribs);
+          if (!gl) {
+            VRSamplesUtil.addError("Your browser does not support WebGL.");
+            return;
+          }
+        }
         gl.clearColor(0.1, 0.2, 0.3, 1.0);
         gl.enable(gl.DEPTH_TEST);
         gl.enable(gl.CULL_FACE);

@@ -87,6 +87,14 @@ found in the LICENSE file.
         antialias: !VRSamplesUtil.isMobile()
       };
       var gl = webglCanvas.getContext("webgl", glAttribs);
+      if (!gl) {
+        gl = webglCanvas.getContext("experimental-webgl", glAttribs);
+        if (!gl) {
+          VRSamplesUtil.addError("Your browser does not support WebGL.");
+          return;
+        }
+      }
+
       gl.clearColor(0.1, 0.2, 0.3, 1.0); // Non-black makes debugging easier.
       gl.enable(gl.DEPTH_TEST);
       gl.enable(gl.CULL_FACE);
