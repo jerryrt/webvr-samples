@@ -626,13 +626,15 @@ var WGLUStats = (function() {
   Stats.prototype.renderOrtho = function(x, y, width, height) {
     var canvas = this.gl.canvas;
 
+    var dpr = (typeof(window) == 'undefined') ? 1.0 : window.devicePixelRatio;
+
     if (x == undefined || y == undefined) {
-      x = 10 * window.devicePixelRatio;
-      y = 10 * window.devicePixelRatio;
+      x = 10 * dpr;
+      y = 10 * dpr;
     }
     if (width == undefined || height == undefined) {
-      width = 75 * window.devicePixelRatio;
-      height = 75 * window.devicePixelRatio;
+      width = 75 * dpr;
+      height = 75 * dpr;
     }
 
     mat4_ortho(this.orthoProjMatrix, 0, canvas.width, 0, canvas.height, 0.1, 1024);

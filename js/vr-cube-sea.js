@@ -4,7 +4,7 @@
 
 /* global mat4, WGLUProgram */
 
-window.VRCubeSea = (function () {
+VRCubeSea = (function () {
   "use strict";
 
   var cubeSeaVS = [

@@ -372,96 +372,144 @@ var WGLUTextureLoader = (function() {
   var loadImgTexture = (function createTextureLoader() {
     var MAX_CACHE_IMAGES = 16;
 
-    var textureImageCache = new Array(MAX_CACHE_IMAGES);
-    var cacheTop = 0;
-    var remainingCacheImages = MAX_CACHE_IMAGES;
-    var pendingTextureRequests = [];
+    if (typeof(Image) != 'undefined') {
+      // Loading textures in the main thread
+      var textureImageCache = new Array(MAX_CACHE_IMAGES);
+      var cacheTop = 0;
+      var remainingCacheImages = MAX_CACHE_IMAGES;
+      var pendingTextureRequests = [];
 
-    var TextureImageLoader = function(loadedCallback) {
-      var self = this;
-      var blackPixel = new Uint8Array([0, 0, 0]);
+      var TextureImageLoader = function(loadedCallback) {
+        var self = this;
+        var blackPixel = new Uint8Array([0, 0, 0]);
 
-      this.gl = null;
-      this.texture = null;
-      this.callback = null;
+        this.gl = null;
+        this.texture = null;
+        this.callback = null;
 
-      this.image = new Image();
-      this.image.crossOrigin = 'anonymous';
-      this.image.addEventListener('load', function() {
-        var gl = self.gl;
-        gl.bindTexture(gl.TEXTURE_2D, self.texture);
+        this.image = new Image();
+        this.image.crossOrigin = 'anonymous';
+        this.image.addEventListener('load', function() {
+          var gl = self.gl;
+          gl.bindTexture(gl.TEXTURE_2D, self.texture);
 
-        var startTime = Date.now();
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, self.image);
+          var startTime = Date.now();
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, self.image);
 
-        if (isPowerOfTwo(self.image.width) && isPowerOfTwo(self.image.height)) {
-          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
-          gl.generateMipmap(gl.TEXTURE_2D);
+          if (isPowerOfTwo(self.image.width) && isPowerOfTwo(self.image.height)) {
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
+            gl.generateMipmap(gl.TEXTURE_2D);
+          } else {
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+          }
+          var uploadTime = Date.now() - startTime;
+
+          if(self.callback) {
+            var stats = {
+              width: self.image.width,
+              height: self.image.height,
+              internalFormat: gl.RGBA,
+              levelZeroSize: self.image.width * self.image.height * 4,
+              uploadTime: uploadTime
+            };
+            self.callback(self.texture, null, stats);
+          }
+          loadedCallback(self);
+        }, false);
+        this.image.addEventListener('error', function(ev) {
+          clearOnError(self.gl, 'Image could not be loaded: ' + self.image.src, self.texture, self.callback);
+          loadedCallback(self);
+        }, false);
+      };
+
+      TextureImageLoader.prototype.loadTexture = function(gl, src, texture, callback) {
+        this.gl = gl;
+        this.texture = texture;
+        this.callback = callback;
+        this.image.src = src;
+      };
+
+      var PendingTextureRequest = function(gl, src, texture, callback) {
+        this.gl = gl;
+        this.src = src;
+        this.texture = texture;
+        this.callback = callback;
+      };
+
+      function releaseTextureImageLoader(til) {
+        var req;
+        if(pendingTextureRequests.length) {
+          req = pendingTextureRequests.shift();
+          til.loadTexture(req.gl, req.src, req.texture, req.callback);
         } else {
-          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+          textureImageCache[cacheTop++] = til;
         }
-        var uploadTime = Date.now() - startTime;
-
-        if(self.callback) {
-          var stats = {
-            width: self.image.width,
-            height: self.image.height,
-            internalFormat: gl.RGBA,
-            levelZeroSize: self.image.width * self.image.height * 4,
-            uploadTime: uploadTime
-          };
-          self.callback(self.texture, null, stats);
-        }
-        loadedCallback(self);
-      }, false);
-      this.image.addEventListener('error', function(ev) {
-        clearOnError(self.gl, 'Image could not be loaded: ' + self.image.src, self.texture, self.callback);
-        loadedCallback(self);
-      }, false);
-    };
-
-    TextureImageLoader.prototype.loadTexture = function(gl, src, texture, callback) {
-      this.gl = gl;
-      this.texture = texture;
-      this.callback = callback;
-      this.image.src = src;
-    };
-
-    var PendingTextureRequest = function(gl, src, texture, callback) {
-      this.gl = gl;
-      this.src = src;
-      this.texture = texture;
-      this.callback = callback;
-    };
-
-    function releaseTextureImageLoader(til) {
-      var req;
-      if(pendingTextureRequests.length) {
-        req = pendingTextureRequests.shift();
-        til.loadTexture(req.gl, req.src, req.texture, req.callback);
-      } else {
-        textureImageCache[cacheTop++] = til;
       }
+
+      return function(gl, src, texture, callback) {
+        var til;
+
+        if(cacheTop) {
+          til = textureImageCache[--cacheTop];
+          til.loadTexture(gl, src, texture, callback);
+        } else if (remainingCacheImages) {
+          til = new TextureImageLoader(releaseTextureImageLoader);
+          til.loadTexture(gl, src, texture, callback);
+          --remainingCacheImages;
+        } else {
+          pendingTextureRequests.push(new PendingTextureRequest(gl, src, texture, callback));
+        }
+
+        return texture;
+      };
+    } else {
+      return function(gl, src, texture, callback) {
+        // Loading textures in a worker
+        var xhr = new XMLHttpRequest();
+        xhr.addEventListener('load', function (ev) {
+          if (xhr.status == 200) {
+            createImageBitmap(xhr.response).then(function(imageBitmap) {
+              gl.bindTexture(gl.TEXTURE_2D, texture);
+
+              var startTime = Date.now();
+              gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, imageBitmap);
+
+              if (isPowerOfTwo(imageBitmap.width) && isPowerOfTwo(imageBitmap.height)) {
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
+                gl.generateMipmap(gl.TEXTURE_2D);
+              } else {
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+              }
+              var uploadTime = Date.now() - startTime;
+
+              if(self.callback) {
+                var stats = {
+                  width: imageBitmap.width,
+                  height: imageBitmap.height,
+                  internalFormat: gl.RGBA,
+                  levelZeroSize: imageBitmap.width * imageBitmap.height * 4,
+                  uploadTime: uploadTime
+                };
+                self.callback(texture, null, stats);
+              }
+            }, function(err) {
+              clearOnError(self.gl, err, texture, callback);
+            });
+          } else {
+            clearOnError(self.gl, xhr.statusText, texture, callback);
+          }
+        }, false);
+        xhr.open('GET', src, true);
+        xhr.responseType = 'blob';
+        xhr.send(null);
+
+        return texture;
+      };
     }
-
-    return function(gl, src, texture, callback) {
-      var til;
-
-      if(cacheTop) {
-        til = textureImageCache[--cacheTop];
-        til.loadTexture(gl, src, texture, callback);
-      } else if (remainingCacheImages) {
-        til = new TextureImageLoader(releaseTextureImageLoader);
-        til.loadTexture(gl, src, texture, callback);
-        --remainingCacheImages;
-      } else {
-        pendingTextureRequests.push(new PendingTextureRequest(gl, src, texture, callback));
-      }
-
-      return texture;
-    };
   })();
 
   //=====================//

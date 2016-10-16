@@ -1,0 +1,103 @@
+<!doctype html>
+<!--
+Copyright 2016 The Chromium Authors. All rights reserved.
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+
+    <title>XX - OffscreenCanvas in a Worker</title>
+
+    <!--
+      This sample demonstrates how to mirror content to an external display
+      while presenting to a VRDisplay.
+    -->
+
+    <style>
+      #webgl-canvas {
+        box-sizing: border-box;
+        height: 100%;
+        left: 0;
+        margin: 0;
+        position: absolute;
+        top: 0;
+        width: 100%;
+      }
+    </style>
+
+    <script src="js/vr-samples-util.js"></script>
+  </head>
+  <body>
+    <canvas id="webgl-canvas"></canvas>
+    <script>
+      /* global mat4, VRCubeSea, WGLUStats, WGLUTextureLoader, VRSamplesUtil */
+      (function () {
+      "use strict";
+
+      var webglCanvas = document.getElementById('webgl-canvas');
+      var ctx = webglCanvas.getContext('bitmaprenderer');
+      var vrPresentButton = null;
+
+      var worker = new Worker('js/vr-canvas-worker.js');
+      worker.onmessage = function(msg) {
+          switch(msg.data.type) {
+            case 'onFrameReady':
+              ctx.transferFromImageBitmap(msg.data.imageBitmap);
+              window.requestAnimationFrame(onAnimationFrame);
+              break;
+            default:
+              throw 'Unexpected message type: ' + msg.data.type;
+          }
+      };
+      worker.onerror = function(msg) {
+          console.error('Line: ' + msg.lineno + ', ' + msg.message);
+      };
+
+      function initWebGL(preserveDrawingBuffer) {
+        worker.postMessage({
+          type: 'initWebGL',
+          preserveDrawingBuffer: preserveDrawingBuffer
+        });
+      }
+
+      if (navigator.getVRDisplays) {
+        initWebGL(true);
+      } else if (navigator.getVRDevices) {
+        initWebGL(false);
+        VRSamplesUtil.addError("Your browser supports WebVR but not the latest version. See <a href='http://webvr.info'>webvr.info</a> for more info.");
+      } else {
+        // No VR means no mirroring, so create WebGL content without
+        // preserveDrawingBuffer
+        initWebGL(false);
+        VRSamplesUtil.addError("Your browser does not support WebVR. See <a href='http://webvr.info'>webvr.info</a> for assistance.");
+      }
+
+      function onResize () {
+        worker.postMessage({
+            type: 'onResize',
+            width: webglCanvas.offsetWidth * window.devicePixelRatio,
+            height: webglCanvas.offsetHeight * window.devicePixelRatio
+        });
+      }
+      window.addEventListener("resize", onResize, false);
+      onResize();
+
+      function onAnimationFrame (t) {
+        worker.postMessage({
+          type: 'onAnimationFrame',
+          timestamp: t
+        });
+
+        //window.requestAnimationFrame(onAnimationFrame);
+      }
+      window.requestAnimationFrame(onAnimationFrame);
+
+      })();
+    </script>
+  </body>
+</html>
