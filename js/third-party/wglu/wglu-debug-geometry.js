@@ -129,6 +129,40 @@ var WGLUDebugGeometry = (function() {
     this.cubeIndexCount = indices.length - this.cubeIndexOffset;
 
     //
+    // Cone Geometry
+    //
+    this.coneIndexOffset = indices.length;
+
+    var size = 0.5;
+    var conePointVertex = verts.length / 3.0;
+    var coneBaseVertex = conePointVertex+1;
+    var coneSegments = 16;
+
+    // Point
+    verts.push(0, size, 0);
+
+    // Base Vertices
+    for (var i = 0; i < coneSegments; ++i) {
+        if (i > 0) {
+            idx = verts.length / 3.0;
+            indices.push(idx-1, conePointVertex, idx);
+        }
+
+        var rad = ((Math.PI * 2) / coneSegments) * i;
+        verts.push(Math.sin(rad) * (size / 2.0), -size, Math.cos(rad) * (size  / 2.0));
+    }
+
+    // Last triangle to fill the gap
+    indices.push(idx, conePointVertex, coneBaseVertex);
+
+    // Base triangles
+    for (var i = 2; i < coneSegments; ++i) {
+        indices.push(coneBaseVertex, coneBaseVertex+(i-1), coneBaseVertex+i);
+    }
+
+    this.coneIndexCount = indices.length - this.coneIndexOffset;
+
+    //
     // Rect geometry
     //
     this.rectIndexOffset = indices.length;
@@ -214,6 +248,22 @@ var WGLUDebugGeometry = (function() {
 
     this._bindUniforms(null, [x, y, -1], [width, height, 1], color);
     gl.drawElements(gl.LINE_STRIP, this.rectIndexCount, gl.UNSIGNED_SHORT, this.rectIndexOffset * 2.0);
+  };
+
+  DebugGeometry.prototype.drawCone = function(orientation, position, size, color) {
+    var gl = this.gl;
+
+    if (!size) { size = 1; }
+    this._bindUniforms(orientation, position, [size, size, size], color);
+    gl.drawElements(gl.TRIANGLES, this.coneIndexCount, gl.UNSIGNED_SHORT, this.coneIndexOffset * 2.0);
+  };
+
+  DebugGeometry.prototype.drawConeWithMatrix = function(mat, color) {
+    var gl = this.gl;
+
+    gl.uniformMatrix4fv(this.program.uniform.modelMat, false, mat);
+    gl.uniform4fv(this.program.uniform.color, color);
+    gl.drawElements(gl.TRIANGLES, this.coneIndexCount, gl.UNSIGNED_SHORT, this.coneIndexOffset * 2.0);
   };
 
   return DebugGeometry;

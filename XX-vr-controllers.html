@@ -83,6 +83,7 @@ found in the LICENSE file.
       var viewMat = mat4.create();
       var poseMat = mat4.create();
       var gamepadMat = mat4.create();
+      var gamepadMat2 = mat4.create();
       var gamepadColor = vec4.create();
       var standingPosition = vec3.create();
       var vrPresentButton = null;
@@ -265,25 +266,29 @@ found in the LICENSE file.
           // VRDisplay's pose.
           getPoseMatrix(gamepadMat, gamepad.pose, true);
 
-          // Scaled down to from 1 meter to be something closer to the size of
-          // a hand.
-          mat4.scale(gamepadMat, gamepadMat, [0.1, 0.1, 0.1]);
-
-          // Loop through all the gamepad's axes and rotate the cube by their
-          // value.
+          // Loop through all the gamepad's axes and scale the gamepad geometry
+          // by their value.
+          var scale = [0.1, 0.1, 0.1];
           for (var j = 0; j < gamepad.axes.length; ++j) {
             switch (j%3) {
               case 0:
-                mat4.rotateX(gamepadMat, gamepadMat, gamepad.axes[j] * Math.PI);
+                scale[0] *= 1.0 + gamepad.axes[j];
                 break;
               case 1:
-                mat4.rotateY(gamepadMat, gamepadMat, gamepad.axes[j] * Math.PI);
+                scale[1] *= 1.0 + gamepad.axes[j];
                 break;
               case 2:
-                mat4.rotateZ(gamepadMat, gamepadMat, gamepad.axes[j] * Math.PI);
+                scale[2] *= 1.0 + gamepad.axes[j];
                 break;
             }
           }
+
+          // Scaled down to from 1 meter to be something closer to the size of
+          // a hand.
+          mat4.scale(gamepadMat, gamepadMat, scale);
+
+          // Rotate -90 deg so the point of the cone faces "forward"
+          mat4.rotateX(gamepadMat, gamepadMat, -Math.PI * 0.5);
 
           // Show the gamepad's cube as red if any buttons are pressed, blue
           // otherwise.
@@ -294,6 +299,16 @@ found in the LICENSE file.
               break;
             }
           }
+
+          debugGeom.drawConeWithMatrix(gamepadMat, gamepadColor);
+
+          // Draw a "handle" for the gamepad
+          mat4.identity(gamepadMat2);
+          mat4.translate(gamepadMat2, gamepadMat2, [0, -0.5, -0.3]);
+          mat4.rotateX(gamepadMat2, gamepadMat2, -Math.PI * 0.2);
+          mat4.scale(gamepadMat2, gamepadMat2, [0.25, 0.25, 0.5]);
+          
+          mat4.multiply(gamepadMat, gamepadMat, gamepadMat2);
 
           debugGeom.drawBoxWithMatrix(gamepadMat, gamepadColor);
         }
