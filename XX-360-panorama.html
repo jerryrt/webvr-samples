@@ -152,6 +152,27 @@ found in the LICENSE file.
           event.preventDefault();
       }, false);
 
+      var gamepads = [];
+      if (navigator.getGamepads) {
+          gamepads = navigator.getGamepads();
+      } else if (navigator.webkitGetGamepads) {
+          gamepads = navigator.webkitGetGamepads();
+      }
+
+      for (var i = 0; i < gamepads.length; ++i) {
+          var pad = gamepads[i];
+          if(pad) {
+              for(var j = 0; j < Math.min(pad.buttons.length, 4); ++j) {
+                  var button = pad.buttons[j];
+                  if (typeof(button) == "number" && button == 1.0) {
+                      changePano();
+                  } else if (button.pressed) {
+                      changePano();
+                  }
+              }
+          }
+      }
+
       function init (preserveDrawingBuffer) {
         var glAttribs = {
           alpha: false,
