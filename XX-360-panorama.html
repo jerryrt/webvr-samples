@@ -135,13 +135,13 @@ found in the LICENSE file.
           event.preventDefault();
       }, false);
       document.addEventListener('touchend', function(event) {
+          changePano();
           return false;
       }, false);
       document.addEventListener('touchmove', function(event) {
           var touches = event.touches;
           switch(touches.length) {
               case 1:
-                  changePano();
                   break;
               case 2:
                   break;
