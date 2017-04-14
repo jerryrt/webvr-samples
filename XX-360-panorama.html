@@ -87,6 +87,25 @@ found in the LICENSE file.
       var panorama = null;
       var stats = null;
 
+      var panos = [
+        'https://d3vm23vj3k42up.cloudfront.net/media/161221HFTM142047',
+        'https://d3vm23vj3k42up.cloudfront.net/media/161206XBBH031659',
+        'https://d3vm23vj3k42up.cloudfront.net/media/161207111d023720',
+      ];
+
+      var idx = 0;
+
+			function changePano() {
+				console.log('change pano, inited? ' + panorama);
+        if (panorama) {
+  				console.log('use pano ' + idx);
+          panorama.setImage(panos[idx%3]);
+          idx++;
+        }
+			}
+
+      webglCanvas.addEventListener('click', changePano);
+
       function init (preserveDrawingBuffer) {
         var glAttribs = {
           alpha: false,
@@ -106,6 +125,7 @@ found in the LICENSE file.
 
         panorama = new VRPanorama(gl);
         panorama.setImage("media/textures/pano_4k.jpg");
+
 
         stats = new WGLUStats(gl);
 
@@ -253,7 +273,7 @@ found in the LICENSE file.
 
         stats.end();
       }
-      })();
+    })();
     </script>
   </body>
 </html>
