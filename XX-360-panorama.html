@@ -70,6 +70,8 @@ found in the LICENSE file.
       (function () {
       "use strict";
 
+      var pressed = new Array(128);
+
       var vrDisplay = null;
       var frameData = null;
       var projectionMat = mat4.create();
@@ -104,7 +106,17 @@ found in the LICENSE file.
         }
 			}
 
-      document.addEventListener('click', changePano);
+      document.addEventListener('keydown', function(event) {
+        console.log('key down: ' + event.keyCode);
+        if(event.keyCode == 32 && !pressed[32]) {
+            changePano();
+        }
+        pressed[event.keyCode] = true;
+      });
+
+      document.addEventListener("keyup", function(event) {
+        pressed[event.keyCode] = false;
+    }, false);
 
       function init (preserveDrawingBuffer) {
         var glAttribs = {
