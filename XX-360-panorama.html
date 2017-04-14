@@ -112,11 +112,45 @@ found in the LICENSE file.
             changePano();
         }
         pressed[event.keyCode] = true;
-      });
+      }, false);
 
       document.addEventListener("keyup", function(event) {
         pressed[event.keyCode] = false;
-    }, false);
+      }, false);
+
+      // Touch handling code
+      document.addEventListener('touchstart', function(event) {
+          var touches = event.touches;
+          switch(touches.length) {
+              case 1: // Single finger looks around
+                  break;
+              case 2: // Two fingers moves
+                  break;
+              case 3: // Three finger tap jumps
+                  break;
+              default:
+                  return;
+          }
+          event.stopPropagation();
+          event.preventDefault();
+      }, false);
+      document.addEventListener('touchend', function(event) {
+          return false;
+      }, false);
+      document.addEventListener('touchmove', function(event) {
+          var touches = event.touches;
+          switch(touches.length) {
+              case 1:
+                  changePano();
+                  break;
+              case 2:
+                  break;
+              default:
+                  return;
+          }
+          event.stopPropagation();
+          event.preventDefault();
+      }, false);
 
       function init (preserveDrawingBuffer) {
         var glAttribs = {
